@@ -33,7 +33,7 @@ def read_file_as_ascii(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             content = file.read()
-        # converte para ASCII ignorando ou substituindo caracteres que nao sao ASCII
+        # Convert to ASCII by ignoring or replacing non-ASCII characters
         ascii_content = content.encode("ascii", errors="ignore").decode("ascii")
         return ascii_content
     except Exception as e:
@@ -146,7 +146,6 @@ class Node:
                         self.is_leaf = False
                         self.code = None
 
-    # pesquisa o codigo 
     def search_code(self, string): 
         response = None
         if self.is_leaf and string == '': 
@@ -158,10 +157,26 @@ class Node:
                     sufixo = string[len(prefixo):]
                     response = self.children[i].search_code(sufixo)
                     break
+        return response
+    
+    def remove_node(self, string): 
+        response = False
+        if self.is_leaf and string == '': 
+            response = True
+        else:
+            for i in range(len(self.children)): 
+                prefixo = testa_prefixo(string, self.children[i].text)
+                if prefixo == self.children[i].text:
+                    sufixo = string[len(prefixo):]
+                    response = self.children[i].remove_node(sufixo)
+                    if response == True:
+                        if len(self.children[i].children) == 0:
+                            self.children.pop(i)
+                    break
                 
         return response
             
-    # pesquisa a string
+
     def search(self, string): 
         response = False
         if self.is_leaf and string == '': 
@@ -258,7 +273,10 @@ class Trie :
         binary_string = f"{code:0{n}b}"
         return binary_string
 
-# funcao para compressao 
+    def remove_node(self, string):
+        response = self.root.remove_node(string)
+        return response
+
 def encode(
     texto,
     params_bits=12,
@@ -285,7 +303,6 @@ def encode(
             text_encoded += code_l
     return text_encoded 
 
-# funcao para descompressao
 def decode(
     text_encoded,
     params_bits=12,
@@ -325,3 +342,4 @@ def decode(
         init = endt
         endt = init + step
     return texto_decoded
+

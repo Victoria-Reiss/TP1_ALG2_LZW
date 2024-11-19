@@ -1,9 +1,26 @@
 import os 
+import base64
 from time import time
 from argparse import ArgumentParser
 
 from lzw import encode
 from lzw import decode
+
+def binary_string_to_bytes(binary_string):
+    # Ensure the length of the binary string is a multiple of 8
+    if len(binary_string) % 8 != 0:
+        # Pad the binary string to make it a multiple of 8 bits
+        binary_string = binary_string.ljust(len(binary_string) + (8 - len(binary_string) % 8), '0')
+
+    # Convert the binary string to bytes
+    byte_data = bytearray()
+    for i in range(0, len(binary_string), 8):
+        byte_data.append(int(binary_string[i:i+8], 2))
+    return byte_data
+
+def bytes_to_binary_string(byte_data):
+    binary_string = ''.join(format(byte, '08b') for byte in byte_data)
+    return binary_string
 
 parser = ArgumentParser(description='Compression and Decompression LZW (Lempel-Ziv-Welch) algorithm implemented in Python')
 
@@ -18,6 +35,15 @@ group.add_argument (
     metavar='',
     help='Path to the input file that will be compressed.'
 )
+group.add_argument (
+    '-x', '--x',
+    type=str,
+    default=None,
+    action='store',
+    metavar='',
+    help='Path to the input file that will be compressed.'
+)
+
 
 # argumento para descompressar
 group.add_argument (
@@ -56,9 +82,9 @@ parser.add_argument (
 
 if __name__ == '__main__': 
 
-    lz_extension:str = '.lzw' # extensao padrao para saida da compressao
-    txt_extension:str = '.txt' # extensao padrao para saida da descompressao
-    descompression_token:str = '__dec' # token para descompressao
+    lz_extension:str = '.lzw' # default extension to output compression
+    txt_extension:str = '.txt' # default extension to output descompression
+    descompression_token:str = '__dec' # token to descompression
 
     args = parser.parse_args()
 
@@ -72,10 +98,10 @@ if __name__ == '__main__':
 
     if args.c: 
 
-        # Caso da compressao
+        # Compression Case
         output_file:str = ''
         if args.o:
-            # se eh parsed, usamos o caminho do output file.
+            # Using output file path when it is parsed.
             output_file = args.o
         else:
             dot_position:int = args.c[::-1].find('.')
@@ -87,16 +113,16 @@ if __name__ == '__main__':
         print('| - Output File: {}'.format(output_file))
         print('\n\nCompressing...')
 
-        # verificacao do tempo de compressao
         start_timer = time()
         content:str = None
-        with open(args.c, 'r', encoding="ascii") as file:
-            content = file.read()
+        with open(args.c, 'rb') as f:
+            content = base64.b64encode(f.read()).decode('ascii')
         
-        encode_text = '1' + encode(texto=content, params_bits=args.n, is_fixed=args.f)
-
-        binary_data = int(encode_text, 2).to_bytes((len(encode_text) + 7) // 8, byteorder="big")
-
+        # print(content)
+        encode_text = encode(texto=content, params_bits=args.n, is_fixed=args.f)
+        binary_data = binary_string_to_bytes(encode_text)
+        # Write binary data to a file
+        # print(binary_data)
         with open(output_file, "wb") as file:
             file.write(binary_data)
         
@@ -113,10 +139,10 @@ if __name__ == '__main__':
         print('|- Compression Ratio: {:.4f}%'.format((compressed_size / original_size) * 100))
 
     elif args.d:
-        # caso de descompressao
+        # Descompression Case
         output_file:str = ''
         if args.o:
-            # se eh parsed, usamos o caminho do output file.
+            # Using output file path when it is parsed.
             output_file = args.o
         else:
             dot_position:int = args.d[::-1].find('.')
@@ -131,10 +157,8 @@ if __name__ == '__main__':
         content:str = None
         with open(args.d, 'rb') as file:
             content = file.read()
-        
-        binary_string_read = bin(int.from_bytes(content, byteorder="big"))[2:].zfill(len(content))
-        binary_string_read = binary_string_read[1:]
+
+        binary_string_read = bytes_to_binary_string(content)
         decode_text = decode(text_encoded=binary_string_read, params_bits=args.n, is_fixed=args.f)
-        with open(output_file, "w") as file:
-            file.write(decode_text)
-        print('File Descompressed!')
+        with open(output_file, "wb") as file:
+            file.write(base64.b64decode(decode_text))
